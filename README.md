@@ -25,15 +25,18 @@ The requested demo password is `Rammy018`; the owner mobile field accepts any va
 
 ## Google Sheets and Drive integration
 
-The frontend sends a JSON POST to `VITE_APPS_SCRIPT_URL`, including the uploaded files as Base64 data URLs. Configure and deploy your own Google Apps Script Web App to validate requests, create/update a Sheet and save file data into Drive, and return a suitable response. The email `srinivasa.andhra.pg@gmail.com` is included as the intended recipient metadata; it does not grant access or configure a Google account. Apps Script deployment must handle CORS/browser requests and enforce appropriate authorization. Never expose private credentials in this frontend. Local browser storage is retained as a fallback; records saved there exist only on that browser/device.
+Use a Google Sheet owned by `srinivasa.andhra.pg@gmail.com` and deploy the provided script at `docs/google-apps-script.js`.
 
-Example environment file:
+### 4-step deployment
 
-```dotenv
-VITE_APPS_SCRIPT_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
-```
+1. Sign in to Google at `https://sheets.google.com` as `srinivasa.andhra.pg@gmail.com`. Create or open the target spreadsheet, then open **Extensions → Apps Script**.
+2. Replace the editor contents with `docs/google-apps-script.js`. Save the project, then run `setup` once from the Apps Script editor and grant its Google Sheet and Drive permissions.
+3. In Apps Script, select **Deploy → New deployment → Web app**. Set **Execute as** to **Me (srinivasa.andhra.pg@gmail.com)** and **Who has access** to **Anyone**. Deploy and copy the generated `/exec` Web App URL.
+4. Add `VITE_APPS_SCRIPT_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec` to `.env.local` or your hosting provider environment variables. Rebuild/redeploy. Alternatively, open **Owner login → Settings** and save the URL for the current browser.
 
-After setting the URL, run `npm run build` again. The Settings dialog saves a URL for display/status on the current browser; the built-in request uses the Vite environment variable, so rebuild to change the live sync endpoint.
+The script automatically creates `Sri_Srinivasa_PG_ID_Proofs`, `Active_Tenants`, and `Vacated_List`. Form submissions use `action: "submit"`; owner check-outs use `action: "vacate"`; owner dashboard loads use `GET` to return live active and vacated records.
+
+POST requests use `Content-Type: text/plain;charset=utf-8`, avoiding a CORS preflight request. Deploy a new Apps Script version after changing `Code.gs`. Aadhaar and identity documents are sensitive: keep Drive sharing limited and use production authentication, consent, retention, encryption, and access controls before real-world use.
 
 ## Build
 

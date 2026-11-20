@@ -3,7 +3,7 @@ import { Download, Search, Settings, LogOut, Users, DoorOpen, Wallet, Clock3, Fi
 import type { Tenant } from '../types/tenant';
 import { exportCsv } from '../services/googleSheetsService';
 import VacateModal from './VacateModal';
-interface Props { tenants: Tenant[]; onUpdate: (t: Tenant) => void; onLogout: () => void; onSettings: () => void; syncConfigured: boolean }
+interface Props { tenants: Tenant[]; onUpdate: (t: Tenant) => Promise<void>; onLogout: () => void; onSettings: () => void; syncConfigured: boolean }
 function DocumentLink({title,doc}:{title:string;doc:Tenant['aadhaarFront']}) { return <a className="document-link" href={doc.dataUrl} target="_blank" rel="noreferrer"><FileText size={15}/>{title}<ExternalLink size={13}/></a> }
 export default function OwnerDashboard({tenants,onUpdate,onLogout,onSettings,syncConfigured}:Props) {
  const [tab,setTab]=useState<'active'|'vacated'>('active'); const [query,setQuery]=useState(''); const [room,setRoom]=useState(''); const [vacating,setVacating]=useState<Tenant|null>(null); const [detail,setDetail]=useState<Tenant|null>(null);
