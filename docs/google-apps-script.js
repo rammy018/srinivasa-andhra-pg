@@ -224,6 +224,14 @@ function rowObjects(sheet) {
   const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
   return values.filter(function (row) {
     return row.some(function (cell) { return cell !== '' && cell !== null; });
+  }).filter(function (row) {
+    const id = String(row[0] || '').trim();
+    const fullName = String(row[2] || '').trim();
+    if (!id || !fullName) return false;
+    if (id === 'ID' || id === 'Timestamp') return false;
+    if (fullName === 'Full Name' || fullName === 'Mobile Number') return false;
+    if (/dynamic live roster|all currently residing tenants|automatically synced/i.test(id + ' ' + fullName)) return false;
+    return true;
   }).map(function (row) {
     const record = {};
     SHEET_HEADERS.forEach(function (header, i) {
