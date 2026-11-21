@@ -7,10 +7,11 @@ const SHEET_HEADERS = [
 ];
 
 const FOLDER_NAME = 'Sri_Srinivasa_PG_ID_Proofs';
+const SPREADSHEET_ID = '1cw2WrOnvArO_WwRxApKG7I5m4qF0eqz8ylQmYzx--bY';
 
 /** Automatically set up the folder and spreadsheet tabs on first use/open. */
 function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   ['Active_Tenants', 'Vacated_List'].forEach(function (name) {
     let sheet = ss.getSheetByName(name);
     if (!sheet) sheet = ss.insertSheet(name);
@@ -27,6 +28,11 @@ function setup() {
   });
   getOrCreateFolder();
   return ss;
+}
+
+function getSpreadsheet() {
+  if (SPREADSHEET_ID) return SpreadsheetApp.openById(SPREADSHEET_ID);
+  return SpreadsheetApp.getActiveSpreadsheet();
 }
 
 function getOrCreateFolder() {
@@ -116,19 +122,18 @@ function doPost(e) {
       const timestamp = firstValue(tenant, ['createdAt', 'timestamp', 'Timestamp'], new Date());
 
       let aadhaarPhoto = firstValue(payload, ['aadhaarPhoto'], firstValue(tenant, ['aadhaarPhoto', 'aadhaarFront', 'aadhaarFrontPhoto'], ''));
+      let aadhaarBackPhoto = firstValue(payload, ['aadhaarBack'], firstValue(tenant, ['aadhaarBack', 'aadhaarBackPhoto'], ''));
       let officeIdPhoto = firstValue(payload, ['officeIdPhoto'], firstValue(tenant, ['officeIdPhoto', 'officeId'], ''));
 
       // Existing app data fields can contain UploadedDocument dataUrl objects.
-      if (aadhaarPhoto && typeof aadhaarPhoto === 'object' && aadhaarPhoto.dataUrl) {
-        aadhaarPhoto = aadhaarPhoto.dataUrl;
-      }
-      if (officeIdPhoto && typeof officeIdPhoto === 'object' && officeIdPhoto.dataUrl) {
-        officeIdPhoto = officeIdPhoto.dataUrl;
-      }
+      if (aadhaarPhoto && typeof aadhaarPhoto === 'object' && aadhaarPhoto.dataUrl) aadhaarPhoto = aadhaarPhoto.dataUrl;
+      if (aadhaarBackPhoto && typeof aadhaarBackPhoto === 'object' && aadhaarBackPhoto.dataUrl) aadhaarBackPhoto = aadhaarBackPhoto.dataUrl;
+      if (officeIdPhoto && typeof officeIdPhoto === 'object' && officeIdPhoto.dataUrl) officeIdPhoto = officeIdPhoto.dataUrl;
 
       const safeName = sanitizeFileNamePart(fullName);
       const safeMobile = sanitizeFileNamePart(mobile);
-      const aadhaarUrl = saveDataUrlImage(aadhaarPhoto, safeName + '_' + safeMobile + '_Aadhaar');
+      const aadhaarUrl = saveDataUrlImage(aadhaarPhoto, safeName + '_' + safeMobile + '_Aadhaar_Front');
+      const aadhaarBackUrl = saveDataUrlImage(aadhaarBackPhoto, safeName + '_' + safeMobile + '_Aadhaar_Back');
       const officeIdUrl = saveDataUrlImage(officeIdPhoto, safeName + '_' + safeMobile + '_OfficeID');
 
       const row = [
@@ -155,19 +160,20 @@ function doPost(e) {
         firstValue(tenant, ['remarks', 'Remarks'], '')
       ];
 
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Active_Tenants');
+      const sheet = getSpreadsheet().getSheetByName('Active_Tenants');
       sheet.appendRow(row);
 
       return jsonOutput({
         status: 'success',
         id: id,
         aadhaarUrl: aadhaarUrl,
+        aadhaarBackUrl: aadhaarBackUrl,
         officeIdUrl: officeIdUrl
       });
     }
 
     if (payload.action === 'vacate') {
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const ss = getSpreadsheet();
       const activeSheet = ss.getSheetByName('Active_Tenants');
       const vacatedSheet = ss.getSheetByName('Vacated_List');
       const id = String(firstValue(payload, ['id', 'ID'], ''));
@@ -252,7 +258,7 @@ function rowObjects(sheet) {
 function doGet(e) {
   try {
     setup();
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSpreadsheet();
     return jsonOutput({
       status: 'success',
       activeTenants: rowObjects(ss.getSheetByName('Active_Tenants')),

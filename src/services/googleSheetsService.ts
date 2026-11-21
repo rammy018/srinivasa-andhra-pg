@@ -56,7 +56,7 @@ async function uploadedToBase64(doc: UploadedDocument | null) {
   };
 }
 
-export async function syncTenant(tenant: Tenant): Promise<{ ok: boolean; id?: string; aadhaarUrl?: string; officeIdUrl?: string; error?: string }> {
+export async function syncTenant(tenant: Tenant): Promise<{ ok: boolean; id?: string; aadhaarUrl?: string; aadhaarBackUrl?: string; officeIdUrl?: string; error?: string }> {
   const url = getAppsScriptUrl();
   if (!url) {
     return { ok: false, error: 'Apps Script URL is not configured' };
@@ -78,7 +78,7 @@ export async function syncTenant(tenant: Tenant): Promise<{ ok: boolean; id?: st
       return { ok: false, error: result?.message || `Apps Script returned HTTP ${response.status}` };
     }
 
-    return { ok: true, id: result.id, aadhaarUrl: result.aadhaarUrl, officeIdUrl: result.officeIdUrl };
+    return { ok: true, id: result.id, aadhaarUrl: result.aadhaarUrl, aadhaarBackUrl: result.aadhaarBackUrl, officeIdUrl: result.officeIdUrl };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Network request failed' };
   }
