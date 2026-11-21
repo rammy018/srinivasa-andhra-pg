@@ -315,7 +315,7 @@ function doPost(e) {
       let foundIndex = -1;
 
       for (let i = 0; i < values.length; i++) {
-        if (String(values[i][0]) === id) {
+        if (String(values[i][0]).trim() === id.trim()) {
           foundIndex = i;
           break;
         }
@@ -331,11 +331,12 @@ function doPost(e) {
       row[18] = firstValue(payload, ["noticeGiven", "30-Day Notice"], false)
         ? "Yes"
         : "No";
-      row[19] = firstValue(payload, ["refundAmount", "Refund Amount"], "");
+      row[19] = firstValue(payload, ["refundAmount", "Refund Amount"], 0);
       row[20] = firstValue(payload, ["remarks", "Remarks"], "");
 
       vacatedSheet.appendRow(row);
       activeSheet.deleteRow(foundIndex + 2);
+      SpreadsheetApp.flush();
 
       return jsonOutput({ status: "success", id: id });
     }

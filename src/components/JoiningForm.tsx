@@ -124,12 +124,22 @@ export default function JoiningForm({ onSubmit }: Props) {
       setError("Enter a valid full name with at least first and last name.");
       return;
     }
-    if (!/^\d{10}$/.test(values.mobile) || !/^[6-9][0-9]{9}$/.test(values.mobile)) {
-      setError("Enter a valid 10-digit Indian mobile number starting with 6, 7, 8 or 9.");
+    if (
+      !/^\d{10}$/.test(values.mobile) ||
+      !/^[6-9][0-9]{9}$/.test(values.mobile)
+    ) {
+      setError(
+        "Enter a valid 10-digit Indian mobile number starting with 6, 7, 8 or 9.",
+      );
       return;
     }
-    if (!/^\d{10}$/.test(values.emergencyContact) || !/^[6-9][0-9]{9}$/.test(values.emergencyContact)) {
-      setError("Enter a valid 10-digit Indian emergency contact starting with 6, 7, 8 or 9.");
+    if (
+      !/^\d{10}$/.test(values.emergencyContact) ||
+      !/^[6-9][0-9]{9}$/.test(values.emergencyContact)
+    ) {
+      setError(
+        "Enter a valid 10-digit Indian emergency contact starting with 6, 7, 8 or 9.",
+      );
       return;
     }
     if (!/^\d{12}$/.test(values.aadhaarNumber)) {

@@ -1,24 +1,376 @@
-import { useMemo, useState } from 'react';
-import { Download, Search, Settings, LogOut, Users, DoorOpen, Wallet, Clock3, FileText, ExternalLink, X, CheckCircle2 } from 'lucide-react';
-import type { Tenant } from '../types/tenant';
-import { exportCsv } from '../services/googleSheetsService';
-import VacateModal from './VacateModal';
-interface Props { tenants: Tenant[]; onUpdate: (t: Tenant) => Promise<void>; onLogout: () => void; onSettings: () => void; syncConfigured: boolean }
-function DocumentLink({title,doc}:{title:string;doc:Tenant['aadhaarFront']}) { return <a className="document-link" href={doc.dataUrl} target="_blank" rel="noreferrer"><FileText size={15}/>{title}<ExternalLink size={13}/></a> }
-export default function OwnerDashboard({tenants,onUpdate,onLogout,onSettings,syncConfigured}:Props) {
- const [tab,setTab]=useState<'active'|'vacated'>('active'); const [query,setQuery]=useState(''); const [room,setRoom]=useState(''); const [vacating,setVacating]=useState<Tenant|null>(null); const [detail,setDetail]=useState<Tenant|null>(null);
- const active=tenants.filter(t=>t.status==='active'); const vacated=tenants.filter(t=>t.status==='vacated'); const rooms=[...new Set(tenants.map(t=>t.roomNumber))].sort();
- const visible=useMemo(()=> (tab==='active'?active:vacated).filter(t=>(`${t.fullName} ${t.mobile} ${t.roomNumber}`.toLowerCase().includes(query.toLowerCase()))&&(!room||t.roomNumber===room)),[active,vacated,tab,query,room]);
- const advance=active.reduce((n,t)=>n+t.advanceAmount,0); const pending=vacated.reduce((n,t)=>n+(t.refundAmount??0),0);
- return <main className="dashboard-shell"><div className="dashboard-top"><div><p className="eyebrow">OWNER WORKSPACE</p><h1 className="dashboard-title">Tenant management</h1><p className="muted mt-1">Keep track of residents, rooms and check-outs.</p></div><div className="flex flex-wrap gap-2"><button className="button-secondary" onClick={onSettings}><Settings size={17}/> Settings</button><button className="button-secondary" onClick={()=>exportCsv(tenants)}><Download size={17}/> Export CSV</button><button className="button-dark" onClick={onLogout}><LogOut size={17}/> Log out</button></div></div>
- <div className="sync-status"><span className={`status-dot ${syncConfigured?'bg-emerald-500':'bg-amber-500'}`}/>{syncConfigured?'Google Sheets sync configured':'Local browser storage active'}<button onClick={onSettings} className="ml-auto text-sm font-semibold text-amber-700">Configure</button></div>
- <div className="kpi-grid"><Kpi icon={<Users/>} label="Active tenants" value={active.length} tone="yellow"/><Kpi icon={<DoorOpen/>} label="Total vacated" value={vacated.length} tone="slate"/><Kpi icon={<Wallet/>} label="Total advance held" value={`₹${advance.toLocaleString('en-IN')}`} tone="green"/><Kpi icon={<Clock3/>} label="Pending refunds" value={`₹${pending.toLocaleString('en-IN')}`} tone="orange"/></div>
- <section className="panel"><div className="panel-heading"><div><h2 className="section-title">Residents</h2><p className="muted mt-1">Search by name, mobile or room number.</p></div><div className="filter-row"><div className="search-wrap"><Search size={17}/><input aria-label="Search tenants" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search tenants"/></div><select className="select-compact" aria-label="Filter by room" value={room} onChange={e=>setRoom(e.target.value)}><option value="">All rooms</option>{rooms.map(r=><option key={r}>{r}</option>)}</select></div></div>
- <div className="tab-bar"><button className={`tab-button ${tab==='active'?'tab-selected':''}`} onClick={()=>setTab('active')}>Active tenants <span>{active.length}</span></button><button className={`tab-button ${tab==='vacated'?'tab-selected':''}`} onClick={()=>setTab('vacated')}>Vacated list <span>{vacated.length}</span></button></div>
- {visible.length===0?<div className="empty-state"><div className="icon-tile mx-auto"><Users size={22}/></div><h3 className="mt-3 font-semibold text-slate-800">No tenants found</h3><p className="muted mt-1">{tenants.length?'Try changing your search or room filter.':'New joining form submissions will appear here.'}</p></div>:<div className="table-wrap"><table><thead><tr><th>Tenant</th><th>Room</th><th>Joining date</th>{tab==='vacated'?<><th>Vacate date</th><th>Notice</th><th>Refund</th></>:<><th>Advance</th><th>ID documents</th><th>Action</th></>}</tr></thead><tbody>{visible.map(t=><tr key={t.id}><td><button className="tenant-name" onClick={()=>setDetail(t)}>{t.fullName}</button><span className="table-sub block">{t.mobile}</span></td><td><span className="room-pill">{t.roomNumber} · {t.sharingType}</span></td><td>{t.joiningDate}</td>{tab==='vacated'?<><td>{t.vacateDate}</td><td><span className={`notice-pill ${t.noticeGiven?'notice-yes':'notice-no'}`}>{t.noticeGiven?'30 days':'No notice'}</span></td><td className="font-semibold">₹{(t.refundAmount??0).toLocaleString('en-IN')}</td></>:<><td>₹{t.advanceAmount.toLocaleString('en-IN')}</td><td><div className="flex flex-wrap gap-1"><DocumentLink title="Aadhaar front" doc={t.aadhaarFront}/><DocumentLink title="Aadhaar back" doc={t.aadhaarBack}/><DocumentLink title="Office ID" doc={t.officeId}/></div></td><td><button className="button-small" onClick={()=>setVacating(t)}>Mark vacated</button></td></>}</tr>)}</tbody></table></div>}</section>
- <p className="dashboard-footnote"><CheckCircle2 size={15}/> Records are stored on this device unless Google Sheets sync is configured.</p>
- {vacating&&<VacateModal tenant={vacating} onClose={()=>setVacating(null)} onConfirm={t=>{onUpdate(t);setVacating(null);setTab('vacated')}}/>}
- {detail&&<div className="overlay" onMouseDown={e=>e.target===e.currentTarget&&setDetail(null)}><section className="modal-card max-w-lg"><button className="icon-button modal-close" onClick={()=>setDetail(null)} aria-label="Close"><X size={19}/></button><p className="eyebrow">TENANT PROFILE</p><h2 className="section-title mt-1">{detail.fullName}</h2><p className="muted mt-1">{detail.organization} · Room {detail.roomNumber}</p><div className="profile-grid mt-5">{[['Mobile',detail.mobile],['Emergency contact',detail.emergencyContact],['Father',detail.fatherName],['Mother',detail.motherName||'—'],['Aadhaar',detail.aadhaarNumber],['Address',detail.address],['Joining date',detail.joiningDate],['Advance',`₹${detail.advanceAmount}`]].map(([k,v])=><div key={k}><span>{k}</span><strong>{v}</strong></div>)}</div><div className="mt-5 flex flex-wrap gap-2"><DocumentLink title="Aadhaar front" doc={detail.aadhaarFront}/><DocumentLink title="Aadhaar back" doc={detail.aadhaarBack}/><DocumentLink title="Office / college ID" doc={detail.officeId}/></div></section></div>}
- </main>;
+import { useMemo, useState } from "react";
+import {
+  Download,
+  Search,
+  Settings,
+  LogOut,
+  Users,
+  DoorOpen,
+  Wallet,
+  Clock3,
+  FileText,
+  ExternalLink,
+  X,
+  CheckCircle2,
+} from "lucide-react";
+import type { Tenant } from "../types/tenant";
+import { exportCsv } from "../services/googleSheetsService";
+import VacateModal from "./VacateModal";
+interface Props {
+  tenants: Tenant[];
+  onUpdate: (t: Tenant) => Promise<void>;
+  onLogout: () => void;
+  onSettings: () => void;
+  syncConfigured: boolean;
 }
-function Kpi({icon,label,value,tone}:{icon:React.ReactNode;label:string;value:string|number;tone:string}) {return <article className="kpi-card"><div className={`kpi-icon ${tone}`}>{icon}</div><div><p className="muted text-sm">{label}</p><strong className="kpi-value">{value}</strong></div></article>}
+function DocumentLink({
+  title,
+  doc,
+}: {
+  title: string;
+  doc: Tenant["aadhaarFront"];
+}) {
+  return (
+    <a
+      className="document-link"
+      href={doc.dataUrl}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <FileText size={15} />
+      {title}
+      <ExternalLink size={13} />
+    </a>
+  );
+}
+export default function OwnerDashboard({
+  tenants,
+  onUpdate,
+  onLogout,
+  onSettings,
+  syncConfigured,
+}: Props) {
+  const [tab, setTab] = useState<"active" | "vacated">("active");
+  const [query, setQuery] = useState("");
+  const [room, setRoom] = useState("");
+  const [vacating, setVacating] = useState<Tenant | null>(null);
+  const [detail, setDetail] = useState<Tenant | null>(null);
+  const active = tenants.filter((t) => t.status === "active");
+  const vacated = tenants.filter((t) => t.status === "vacated");
+  const rooms = [...new Set(tenants.map((t) => t.roomNumber))].sort();
+  const visible = useMemo(
+    () =>
+      (tab === "active" ? active : vacated).filter(
+        (t) =>
+          `${t.fullName} ${t.mobile} ${t.roomNumber}`
+            .toLowerCase()
+            .includes(query.toLowerCase()) &&
+          (!room || t.roomNumber === room),
+      ),
+    [active, vacated, tab, query, room],
+  );
+  const advance = active.reduce((n, t) => n + safeAmount(t.advanceAmount), 0);
+  const pending = vacated.reduce((n, t) => n + safeAmount(t.refundAmount), 0);
+  return (
+    <main className="dashboard-shell">
+      <div className="dashboard-top">
+        <div>
+          <p className="eyebrow">OWNER WORKSPACE</p>
+          <h1 className="dashboard-title">Tenant management</h1>
+          <p className="muted mt-1">
+            Keep track of residents, rooms and check-outs.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button className="button-secondary" onClick={onSettings}>
+            <Settings size={17} /> Settings
+          </button>
+          <button
+            className="button-secondary"
+            onClick={() => exportCsv(tenants)}
+          >
+            <Download size={17} /> Export CSV
+          </button>
+          <button className="button-dark" onClick={onLogout}>
+            <LogOut size={17} /> Log out
+          </button>
+        </div>
+      </div>
+      <div className="sync-status">
+        <span
+          className={`status-dot ${syncConfigured ? "bg-emerald-500" : "bg-amber-500"}`}
+        />
+        {syncConfigured
+          ? "Google Sheets sync configured"
+          : "Local browser storage active"}
+        <button
+          onClick={onSettings}
+          className="ml-auto text-sm font-semibold text-amber-700"
+        >
+          Configure
+        </button>
+      </div>
+      <div className="kpi-grid">
+        <Kpi
+          icon={<Users />}
+          label="Active tenants"
+          value={active.length}
+          tone="yellow"
+        />
+        <Kpi
+          icon={<DoorOpen />}
+          label="Total vacated"
+          value={vacated.length}
+          tone="slate"
+        />
+        <Kpi
+          icon={<Wallet />}
+          label="Total advance held"
+          value={`₹${advance.toLocaleString("en-IN")}`}
+          tone="green"
+        />
+        <Kpi
+          icon={<Clock3 />}
+          label="Pending refunds"
+          value={`₹${pending.toLocaleString("en-IN")}`}
+          tone="orange"
+        />
+      </div>
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <h2 className="section-title">Residents</h2>
+            <p className="muted mt-1">Search by name, mobile or room number.</p>
+          </div>
+          <div className="filter-row">
+            <div className="search-wrap">
+              <Search size={17} />
+              <input
+                aria-label="Search tenants"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search tenants"
+              />
+            </div>
+            <select
+              className="select-compact"
+              aria-label="Filter by room"
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+            >
+              <option value="">All rooms</option>
+              {rooms.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="tab-bar">
+          <button
+            className={`tab-button ${tab === "active" ? "tab-selected" : ""}`}
+            onClick={() => setTab("active")}
+          >
+            Active tenants <span>{active.length}</span>
+          </button>
+          <button
+            className={`tab-button ${tab === "vacated" ? "tab-selected" : ""}`}
+            onClick={() => setTab("vacated")}
+          >
+            Vacated list <span>{vacated.length}</span>
+          </button>
+        </div>
+        {visible.length === 0 ? (
+          <div className="empty-state">
+            <div className="icon-tile mx-auto">
+              <Users size={22} />
+            </div>
+            <h3 className="mt-3 font-semibold text-slate-800">
+              No tenants found
+            </h3>
+            <p className="muted mt-1">
+              {tenants.length
+                ? "Try changing your search or room filter."
+                : "New joining form submissions will appear here."}
+            </p>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tenant</th>
+                  <th>Room</th>
+                  <th>Joining date</th>
+                  {tab === "vacated" ? (
+                    <>
+                      <th>Vacate date</th>
+                      <th>Notice</th>
+                      <th>Refund</th>
+                    </>
+                  ) : (
+                    <>
+                      <th>Advance</th>
+                      <th>ID documents</th>
+                      <th>Action</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((t) => (
+                  <tr key={t.id}>
+                    <td>
+                      <button
+                        className="tenant-name"
+                        onClick={() => setDetail(t)}
+                      >
+                        {t.fullName}
+                      </button>
+                      <span className="table-sub block">{t.mobile}</span>
+                    </td>
+                    <td>
+                      <span className="room-pill">
+                        {t.roomNumber} · {t.sharingType}
+                      </span>
+                    </td>
+                    <td>{t.joiningDate}</td>
+                    {tab === "vacated" ? (
+                      <>
+                        <td>{t.vacateDate}</td>
+                        <td>
+                          <span
+                            className={`notice-pill ${t.noticeGiven ? "notice-yes" : "notice-no"}`}
+                          >
+                            {t.noticeGiven ? "30 days" : "No notice"}
+                          </span>
+                        </td>
+                        <td className="font-semibold">
+                          ₹{safeAmount(t.refundAmount).toLocaleString("en-IN")}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>
+                          ₹{safeAmount(t.advanceAmount).toLocaleString("en-IN")}
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap gap-1">
+                            <DocumentLink
+                              title="Aadhaar front"
+                              doc={t.aadhaarFront}
+                            />
+                            <DocumentLink
+                              title="Aadhaar back"
+                              doc={t.aadhaarBack}
+                            />
+                            <DocumentLink title="Office ID" doc={t.officeId} />
+                          </div>
+                        </td>
+                        <td>
+                          <button
+                            className="button-small"
+                            onClick={() => setVacating(t)}
+                          >
+                            Mark vacated
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <p className="dashboard-footnote">
+        <CheckCircle2 size={15} /> Records are stored on this device unless
+        Google Sheets sync is configured.
+      </p>
+      {vacating && (
+        <VacateModal
+          tenant={vacating}
+          onClose={() => setVacating(null)}
+          onConfirm={async (t) => {
+            await onUpdate(t);
+            setVacating(null);
+            setTab("vacated");
+          }}
+        />
+      )}
+      {detail && (
+        <div
+          className="overlay"
+          onMouseDown={(e) => e.target === e.currentTarget && setDetail(null)}
+        >
+          <section className="modal-card max-w-lg">
+            <button
+              className="icon-button modal-close"
+              onClick={() => setDetail(null)}
+              aria-label="Close"
+            >
+              <X size={19} />
+            </button>
+            <p className="eyebrow">TENANT PROFILE</p>
+            <h2 className="section-title mt-1">{detail.fullName}</h2>
+            <p className="muted mt-1">
+              {detail.organization} · Room {detail.roomNumber}
+            </p>
+            <div className="profile-grid mt-5">
+              {[
+                ["Mobile", detail.mobile],
+                ["Emergency contact", detail.emergencyContact],
+                ["Father", detail.fatherName],
+                ["Mother", detail.motherName || "—"],
+                ["Aadhaar", detail.aadhaarNumber],
+                ["Address", detail.address],
+                ["Joining date", detail.joiningDate],
+                [
+                  "Advance",
+                  `₹${safeAmount(detail.advanceAmount).toLocaleString("en-IN")}`,
+                ],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <span>{k}</span>
+                  <strong>{v}</strong>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <DocumentLink title="Aadhaar front" doc={detail.aadhaarFront} />
+              <DocumentLink title="Aadhaar back" doc={detail.aadhaarBack} />
+              <DocumentLink title="Office / college ID" doc={detail.officeId} />
+            </div>
+          </section>
+        </div>
+      )}
+    </main>
+  );
+}
+function Kpi({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  tone: string;
+}) {
+  return (
+    <article className="kpi-card">
+      <div className={`kpi-icon ${tone}`}>{icon}</div>
+      <div>
+        <p className="muted text-sm">{label}</p>
+        <strong className="kpi-value">{value}</strong>
+      </div>
+    </article>
+  );
+}
+
+function safeAmount(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
