@@ -116,15 +116,29 @@ export default function JoiningForm({ onSubmit }: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    const normalizedName = values.fullName.trim().replace(/\s+/g, " ");
     if (
-      !/^\d{10}$/.test(values.mobile) ||
-      !/^\d{10}$/.test(values.emergencyContact)
+      !/^[A-Za-z][A-Za-z .'-]{1,59}$/.test(normalizedName) ||
+      normalizedName.split(" ").length < 2
     ) {
-      setError("Mobile and emergency contact must each be exactly 10 digits.");
+      setError("Enter a valid full name with at least first and last name.");
+      return;
+    }
+    if (!/^\d{10}$/.test(values.mobile) || !/^[6-9][0-9]{9}$/.test(values.mobile)) {
+      setError("Enter a valid 10-digit Indian mobile number starting with 6, 7, 8 or 9.");
+      return;
+    }
+    if (!/^\d{10}$/.test(values.emergencyContact) || !/^[6-9][0-9]{9}$/.test(values.emergencyContact)) {
+      setError("Enter a valid 10-digit Indian emergency contact starting with 6, 7, 8 or 9.");
       return;
     }
     if (!/^\d{12}$/.test(values.aadhaarNumber)) {
       setError("Aadhaar number must be exactly 12 digits.");
+      return;
+    }
+    const advanceAmount = Number(values.advanceAmount);
+    if (!Number.isFinite(advanceAmount) || advanceAmount < 1) {
+      setError("Advance amount must be greater than ₹0.");
       return;
     }
     if (!files.aadhaarFront || !files.aadhaarBack || !files.officeId) {
@@ -143,6 +157,7 @@ export default function JoiningForm({ onSubmit }: Props) {
     try {
       const tenant: Tenant = {
         ...(values as unknown as TenantInput),
+        fullName: normalizedName,
         advanceAmount: Number(values.advanceAmount),
         sharingType: values.sharingType as Tenant["sharingType"],
         aadhaarFront: files.aadhaarFront,
@@ -279,9 +294,11 @@ export default function JoiningForm({ onSubmit }: Props) {
             <div className="relative">
               <span className="currency-prefix">₹</span>
               <input
-                className="input pl-9"
+                className="input advance-input"
                 required
-                min="0"
+                min="1"
+                step="1"
+                inputMode="numeric"
                 type="number"
                 value={values.advanceAmount}
                 onChange={(e) => update("advanceAmount", e.target.value)}

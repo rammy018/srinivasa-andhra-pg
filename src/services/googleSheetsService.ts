@@ -8,42 +8,16 @@ export function getAppsScriptUrl(): string {
 }
 
 export function loadTenants(): Tenant[] {
-  try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') as Tenant[]; }
-  catch { return []; }
+  try { localStorage.removeItem(KEY); } catch { /* storage unavailable */ }
+  return [];
 }
 
-function cacheTenant(tenant: Tenant): Tenant {
-  return {
-    ...tenant,
-    aadhaarFront: { name: '', mimeType: '', dataUrl: '' },
-    aadhaarBack: { name: '', mimeType: '', dataUrl: '' },
-    officeId: { name: '', mimeType: '', dataUrl: '' }
-  };
+export function saveTenant(_tenant: Tenant): void {
+  // No browser copy: Apps Script stores the record in Google Sheets/Drive.
 }
 
-function safeSet(key: string, value: string): boolean {
-  try { localStorage.setItem(key, value); return true; }
-  catch (error) {
-    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-      try { localStorage.removeItem(key); } catch { /* storage unavailable */ }
-    }
-    return false;
-  }
-}
-
-export function saveTenant(tenant: Tenant): void {
-  const cached = cacheTenant(tenant);
-  const existing = loadTenants();
-  const next = [cached, ...existing.filter(t => t.id !== tenant.id)].slice(0, 100);
-  if (!safeSet(KEY, JSON.stringify(next))) {
-    safeSet(KEY, '[]');
-  }
-}
-
-export function updateTenant(updated: Tenant): void {
-  const cached = cacheTenant(updated);
-  const next = loadTenants().map(t => t.id === updated.id ? cached : t);
-  safeSet(KEY, JSON.stringify(next));
+export function updateTenant(_updated: Tenant): void {
+  // No browser copy: vacate changes are sent directly to Apps Script.
 }
 
 async function uploadedToBase64(doc: UploadedDocument | null) {
@@ -130,8 +104,12 @@ export async function fetchTenants(): Promise<{ activeTenants: Tenant[]; vacated
       };
     };
 
-    const active = Array.isArray(result.activeTenants) ? result.activeTenants.map((r: Record<string, unknown>) => normalize(r, 'active')) : [];
-    const vacated = Array.isArray(result.vacatedTenants) ? result.vacatedTenants.map((r: Record<string, unknown>) => normalize(r, 'vacated')) : [];
+    const active = Array.isArray(result.activeTenants)
+      ? result.activeTenants.map((r: Record<string, unknown>) => normalize(r, 'active'))
+      : [];
+    const vacated = Array.isArray(result.vacatedTenants)
+      ? result.vacatedTenants.map((r: Record<string, unknown>) => normalize(r, 'vacated'))
+      : [];
     return { activeTenants: active, vacatedTenants: vacated };
   } catch {
     return null;
