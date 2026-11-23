@@ -2,10 +2,11 @@ import type { Tenant, UploadedDocument } from "../types/tenant";
 
 const KEY = "srinivasa-pg-tenants";
 const URL_KEY = "srinivasa-apps-script-url";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzWPSXKAXb1-acMu03RoXZNWACDYR5ue4K6POSbPNsW0Ap1CA5w6cV3YB6RLnuyczcI/exec";
 
 export function getAppsScriptUrl(): string {
   return (
-    import.meta.env.VITE_APPS_SCRIPT_URL || localStorage.getItem(URL_KEY) || ""
+    import.meta.env.VITE_APPS_SCRIPT_URL || localStorage.getItem(URL_KEY) || DEFAULT_APPS_SCRIPT_URL
   );
 }
 
